@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DARK — Admin Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #080810; color: #ccc; font-family: 'Segoe UI', sans-serif; font-size: 13px; min-height: 100vh; }
+    #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 14px; }
+    #login-screen h1 { font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #fff; }
+    #login-screen p { color: #444466; letter-spacing: 2px; font-size: 11px; }
+    #login-screen input { background: #14141F; border: 1px solid #1E1E2E; border-radius: 8px; color: #E0DDFF; padding: 12px 16px; width: 280px; font-size: 13px; outline: none; }
+    #login-screen button { background: #9B6DFF; color: #fff; border: none; border-radius: 8px; padding: 12px 32px; font-weight: bold; letter-spacing: 2px; cursor: pointer; font-size: 11px; }
+    #login-error { color: #FF4444; font-size: 11px; min-height: 16px; }
+    #dashboard { display: none; }
+    header { background: #0F0F1A; border-bottom: 1px solid #1E1E2E; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 18px; font-weight: 900; letter-spacing: 6px; color: #fff; }
+    #logout-btn { background: transparent; border: 1px solid #2A2A45; color: #666688; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; letter-spacing: 1px; }
+    #stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 20px 28px; }
+    .stat-card { background: #0F0F1A; border: 1px solid #1E1E2E; border-radius: 12px; padding: 16px; }
+    .stat-card .label { font-size: 9px; letter-spacing: 2px; color: #444466; font-weight: bold; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-weight: 900; }
+    .stat-card .sub { font-size: 10px; color: #444466; margin-top: 2px; }
+    .violet .value { color: #9B6DFF; } .lavender .value { color: #B8A0FF; } .mid .value { color: #7C5CDB; } .red .value { color: #FF4444; }
+    #tabs { display: flex; gap: 2px; padding: 0 28px; border-bottom: 1px solid #1E1E2E; }
+    .tab { padding: 10px 20px; cursor: pointer; color: #444466; font-size: 11px; font-weight: bold; letter-spacing: 1px; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .tab.active { color: #9B6DFF; border-bottom-color: #9B6DFF; }
+    #content { padding: 20px 28px; }
+    .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-btn { background: #14141F; border: 1px solid #1E1E2E; color: #666688; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 11px; transition: all 0.15s; }
+    .filter-btn.active { background: #9B6DFF22; border-color: #9B6DFF88; color: #9B6DFF; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 12px; font-size: 9px; letter-spacing: 1.5px; color: #444466; font-weight: bold; border-bottom: 1px solid #1E1E2E; }
+    td { padding: 12px; border-bottom: 1px solid #12121C; vertical-align: top; }
+    tr:hover td { background: #0F0F1A; }
+    .type-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; letter-spacing: 1px; }
+    .badge-confession { background: #9B6DFF22; color: #9B6DFF; }
+    .badge-regret { background: #6B4FBB22; color: #9B7FEE; }
+    .badge-question { background: #B8A0FF22; color: #B8A0FF; }
+    .badge-random { background: #7C5CDB22; color: #9B7FEE; }
+    .post-content { max-width: 420px; color: #B0AACC; line-height: 1.5; word-break: break-word; }
+    .post-meta { font-size: 10px; color: #444466; margin-top: 4px; }
+    .delete-btn { background: #1A0000; border: 1px solid #550000; color: #FF4444; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; letter-spacing: 1px; white-space: nowrap; transition: all 0.15s; }
+    .delete-btn:hover { background: #2A0000; border-color: #FF4444; }
+    .delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .empty-state { text-align: center; padding: 60px; color: #444466; }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    #loading { text-align: center; padding: 60px; color: #444466; letter-spacing: 2px; font-size: 11px; }
+    #refresh-btn { background: #14141F; border: 1px solid #2A2A45; color: #666688; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 11px; letter-spacing: 1px; margin-bottom: 14px; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1A1A2E; border: 1px solid #2E2E4A; color: #E0DDFF; padding: 10px 20px; border-radius: 20px; font-size: 12px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; }
+    .toast.error { border-color: #550000; color: #FF4444; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1>DARK</h1>
+  <p>ADMIN DASHBOARD</p>
+  <input type="password" id="admin-password" placeholder="Admin password" />
+  <button onclick="login()">ACCESS</button>
+  <div id="login-error"></div>
+</div>
+
+<div id="dashboard">
+  <header>
+    <h1>DARK <span style="font-size:11px;color:#444466;letter-spacing:2px;margin-left:8px;">ADMIN</span></h1>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <span id="last-refresh" style="color:#444466;font-size:11px;"></span>
+      <button id="logout-btn" onclick="logout()">LOGOUT</button>
+    </div>
+  </header>
+  <div id="stats-bar">
+    <div class="stat-card violet"><div class="label">Active Posts</div><div class="value" id="stat-posts">—</div><div class="sub">not expired</div></div>
+    <div class="stat-card lavender"><div class="label">Comments (48h)</div><div class="value" id="stat-comments">—</div><div class="sub">last 48 hours</div></div>
+    <div class="stat-card mid"><div class="label">Reactions</div><div class="value" id="stat-reactions">—</div><div class="sub">all time</div></div>
+    <div class="stat-card red"><div class="label">Total Views</div><div class="value" id="stat-views">—</div><div class="sub">active posts</div></div>
+  </div>
+  <div id="tabs">
+    <div class="tab active" onclick="switchTab('posts')">POSTS</div>
+    <div class="tab" onclick="switchTab('comments')">COMMENTS</div>
+    <div class="tab" onclick="switchTab('reactions')">REACTIONS</div>
+  </div>
+  <div id="content"><div id="loading">Loading...</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ╔══════════════════════════════════════════════════╗
+// ║  STEP 1 — your Supabase URL (already filled in)  ║
+// ╚══════════════════════════════════════════════════╝
+const SUPABASE_URL = 'https://isebpmfsoskdvjscznko.supabase.co';
+
+// ╔══════════════════════════════════════════════════╗
+// ║  STEP 2 — paste your NEW anon key here           ║
+// ║  (Supabase → Settings → API → anon public)       ║
+// ╚══════════════════════════════════════════════════╝
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZWJwbWZzb3NrZHZqc2N6bmtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTYyODksImV4cCI6MjA4NzU5MjI4OX0.Vwk8rZar5hkVvLNa5YCNI0bXYGse_78XOPpepKQ55aA';
+
+// ╔══════════════════════════════════════════════════╗
+// ║  STEP 3 — paste your service_role key here       ║
+// ║  (Supabase → Settings → API → service_role key   ║
+// ║   click the eye icon to reveal it)               ║
+// ║  THIS IS WHAT MAKES DELETE WORK                  ║
+// ╚══════════════════════════════════════════════════╝
+const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZWJwbWZzb3NrZHZqc2N6bmtvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAxNjI4OSwiZXhwIjoyMDg3NTkyMjg5fQ.MGXJMDEhhAndXWBsq1LryDj8pTcGokOepJrnv5XCIEs';
+
+// ╔══════════════════════════════════════════════════╗
+// ║  STEP 4 — your admin login password              ║
+// ╚══════════════════════════════════════════════════╝
+const ADMIN_PASSWORD = '2006';
+
+// ── Two clients: anon for reading, admin for deleting ──
+const { createClient } = supabase;
+const db      = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const dbAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+let currentTab = 'posts';
+let typeFilter = 'all';
+
+function login() {
+  const pw = document.getElementById('admin-password').value;
+  if (pw === ADMIN_PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadDashboard();
+  } else {
+    document.getElementById('login-error').textContent = 'Incorrect password.';
+  }
+}
+document.getElementById('admin-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login();
+});
+function logout() {
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-password').value = '';
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['posts','comments','reactions'][i] === tab);
+  });
+  loadContent();
+}
+
+async function loadDashboard() {
+  await loadStats();
+  await loadContent();
+  document.getElementById('last-refresh').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+}
+
+async function loadStats() {
+  const cutoff = new Date(Date.now() - 48 * 3600000).toISOString();
+  const [postsRes, commentsRes, reactionsRes] = await Promise.all([
+    db.from('posts').select('views,burn_fast,created_at').gte('created_at', cutoff),
+    db.from('comments').select('id').gte('created_at', cutoff),
+    db.from('reactions').select('id'),
+  ]);
+  const now = Date.now();
+  const active = (postsRes.data||[]).filter(p => (now - new Date(p.created_at)) < (p.burn_fast?24:48)*3600000);
+  document.getElementById('stat-posts').textContent = active.length;
+  document.getElementById('stat-comments').textContent = (commentsRes.data||[]).length;
+  document.getElementById('stat-reactions').textContent = (reactionsRes.data||[]).length;
+  document.getElementById('stat-views').textContent = active.reduce((s,p)=>s+(p.views||0),0).toLocaleString();
+}
+
+async function loadContent() {
+  document.getElementById('content').innerHTML = '<div id="loading">Loading...</div>';
+  if (currentTab === 'posts') await loadPosts();
+  else if (currentTab === 'comments') await loadComments();
+  else await loadReactions();
+}
+
+async function loadPosts() {
+  const cutoff = new Date(Date.now() - 48*3600000).toISOString();
+  let q = db.from('posts').select('*').gte('created_at',cutoff).order('created_at',{ascending:false});
+  if (typeFilter !== 'all') q = q.eq('type', typeFilter);
+  const { data, error } = await q;
+  if (error) { showError(error.message); return; }
+  const now = Date.now();
+  const posts = (data||[]).filter(p => (now - new Date(p.created_at)) < (p.burn_fast?24:48)*3600000);
+  document.getElementById('content').innerHTML = `
+    <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    <div class="filters">
+      ${['all','confession','regret','question','random'].map(t =>
+        `<button class="filter-btn ${typeFilter===t?'active':''}" onclick="setFilter('${t}')">${t.toUpperCase()}</button>`
+      ).join('')}
+    </div>
+    ${posts.length===0 ? emptyState('No active posts') : `
+      <table>
+        <thead><tr><th>TYPE</th><th>CONTENT</th><th>VIBE</th><th>VIEWS</th><th>EXPIRES</th><th>ACTION</th></tr></thead>
+        <tbody>${posts.map(postRow).join('')}</tbody>
+      </table>`}`;
+}
+
+function postRow(p) {
+  const exp = new Date(p.created_at).getTime() + (p.burn_fast?24:48)*3600000;
+  const rem = Math.max(0, exp - Date.now());
+  const rh = Math.floor(rem/3600000), rm = Math.floor((rem%3600000)/60000);
+  const preview = (p.content||'').substring(0,200) + ((p.content||'').length>200?'…':'');
+  return `<tr id="row-${p.id}">
+    <td><span class="type-badge badge-${p.type}">${p.type.toUpperCase()}</span>${p.burn_fast?' 🔥':''}</td>
+    <td><div class="post-content">${esc(preview)}</div><div class="post-meta">${p.id.substring(0,8)}…</div></td>
+    <td>${p.vibe_level}/10</td>
+    <td>${p.views||0}</td>
+    <td style="color:#666688;font-size:11px;">${rh}h ${rm}m</td>
+    <td><button class="delete-btn" id="del-${p.id}" onclick="deletePost('${p.id}')">DELETE</button></td>
+  </tr>`;
+}
+
+async function deletePost(id) {
+  if (!confirm('Delete this post and all its comments, reactions, and votes?')) return;
+  const btn = document.getElementById('del-'+id);
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    await dbAdmin.from('reactions').delete().eq('post_id', id);
+    await dbAdmin.from('comments').delete().eq('post_id', id);
+    await dbAdmin.from('votes').delete().eq('post_id', id);
+    const { error } = await dbAdmin.from('posts').delete().eq('id', id);
+    if (error) throw error;
+    const row = document.getElementById('row-'+id);
+    if (row) row.remove();
+    showToast('Post deleted ✓');
+    loadStats();
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = 'DELETE'; }
+  }
+}
+
+function setFilter(f) { typeFilter=f; loadPosts(); }
+
+async function loadComments() {
+  const cutoff = new Date(Date.now()-48*3600000).toISOString();
+  const {data} = await db.from('comments').select('*').gte('created_at',cutoff).order('created_at',{ascending:false});
+  document.getElementById('content').innerHTML = `
+    <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    ${(data||[]).length===0 ? emptyState('No comments in last 48h') : `
+      <table>
+        <thead><tr><th>TIME</th><th>COMMENT</th><th>ACTION</th></tr></thead>
+        <tbody>${(data||[]).map(c=>`
+          <tr id="crow-${c.id}">
+            <td style="color:#666688;font-size:10px;white-space:nowrap;">${timeAgo(c.created_at)}</td>
+            <td><div class="post-content">${esc(c.text||'')}</div><div class="post-meta">post: ${(c.post_id||'').substring(0,8)}…</div></td>
+            <td><button class="delete-btn" id="cdel-${c.id}" onclick="deleteComment('${c.id}')">DELETE</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}`;
+}
+
+async function deleteComment(id) {
+  if (!confirm('Delete this comment?')) return;
+  const btn = document.getElementById('cdel-'+id);
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    const { error } = await dbAdmin.from('comments').delete().eq('id', id);
+    if (error) throw error;
+    const row = document.getElementById('crow-'+id);
+    if (row) row.remove();
+    showToast('Comment deleted ✓');
+    loadStats();
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = 'DELETE'; }
+  }
+}
+
+async function loadReactions() {
+  const {data} = await db.from('reactions').select('emoji');
+  const counts={};
+  (data||[]).forEach(r=>{ counts[r.emoji]=(counts[r.emoji]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const total = Object.values(counts).reduce((s,v)=>s+v,0);
+  document.getElementById('content').innerHTML = `
+    <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    ${sorted.length===0 ? emptyState('No reactions yet') : `
+      <table style="max-width:360px;">
+        <thead><tr><th>EMOJI</th><th>COUNT</th><th>%</th></tr></thead>
+        <tbody>${sorted.map(([e,c])=>`
+          <tr>
+            <td style="font-size:22px;">${e}</td>
+            <td style="font-size:18px;font-weight:bold;color:#fff;">${c}</td>
+            <td style="color:#444466;">${((c/total)*100).toFixed(1)}%</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}`;
+}
+
+function emptyState(msg) { return `<div class="empty-state"><div class="icon">👻</div>${msg}</div>`; }
+function showError(msg) { document.getElementById('content').innerHTML=`<div class="empty-state"><div class="icon">⚠️</div>${msg}</div>`; }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function timeAgo(ts) {
+  const d=(Date.now()-new Date(ts))/1000;
+  if(d<60) return Math.round(d)+'s ago';
+  if(d<3600) return Math.round(d/60)+'m ago';
+  return Math.round(d/3600)+'h ago';
+}
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError?' error':'');
+  setTimeout(()=>{ t.className='toast'; }, 3000);
+}
+</script>
+</body>
+</html>
