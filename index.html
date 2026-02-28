@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK — Admin Dashboard</title>
+  <title>DARK — Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,13 +17,14 @@
     #dashboard { display: none; }
     header { background: #0F0F1A; border-bottom: 1px solid #1E1E2E; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
     header h1 { font-size: 18px; font-weight: 900; letter-spacing: 6px; color: #fff; }
-    #logout-btn { background: transparent; border: 1px solid #2A2A45; color: #666688; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; letter-spacing: 1px; }
+    #logout-btn { background: transparent; border: 1px solid #2A2A45; color: #666688; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; }
     #stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 20px 28px; }
     .stat-card { background: #0F0F1A; border: 1px solid #1E1E2E; border-radius: 12px; padding: 16px; }
     .stat-card .label { font-size: 9px; letter-spacing: 2px; color: #444466; font-weight: bold; margin-bottom: 8px; }
     .stat-card .value { font-size: 28px; font-weight: 900; }
     .stat-card .sub { font-size: 10px; color: #444466; margin-top: 2px; }
-    .violet .value { color: #9B6DFF; } .lavender .value { color: #B8A0FF; } .mid .value { color: #7C5CDB; } .red .value { color: #FF4444; }
+    .violet .value { color: #9B6DFF; } .lavender .value { color: #B8A0FF; }
+    .mid .value { color: #7C5CDB; } .red .value { color: #FF4444; }
     #tabs { display: flex; gap: 2px; padding: 0 28px; border-bottom: 1px solid #1E1E2E; }
     .tab { padding: 10px 20px; cursor: pointer; color: #444466; font-size: 11px; font-weight: bold; letter-spacing: 1px; border-bottom: 2px solid transparent; transition: all 0.15s; }
     .tab.active { color: #9B6DFF; border-bottom-color: #9B6DFF; }
@@ -40,18 +41,22 @@
     .badge-regret { background: #6B4FBB22; color: #9B7FEE; }
     .badge-question { background: #B8A0FF22; color: #B8A0FF; }
     .badge-random { background: #7C5CDB22; color: #9B7FEE; }
-    .post-content { max-width: 420px; color: #B0AACC; line-height: 1.5; word-break: break-word; }
+    .report-badge { display: inline-block; background: #FF444422; color: #FF4444; border: 1px solid #FF444444; border-radius: 10px; padding: 1px 7px; font-size: 9px; font-weight: bold; margin-left: 6px; }
+    .post-content { max-width: 380px; color: #B0AACC; line-height: 1.5; word-break: break-word; }
     .post-meta { font-size: 10px; color: #444466; margin-top: 4px; }
-    .delete-btn { background: #1A0000; border: 1px solid #550000; color: #FF4444; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; letter-spacing: 1px; white-space: nowrap; transition: all 0.15s; }
+    .delete-btn { background: #1A0000; border: 1px solid #550000; color: #FF4444; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: bold; white-space: nowrap; transition: all 0.15s; display: block; margin-bottom: 5px; }
     .delete-btn:hover { background: #2A0000; border-color: #FF4444; }
     .delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .dismiss-btn { background: #0A0A1A; border: 1px solid #222244; color: #6666AA; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 10px; white-space: nowrap; transition: all 0.15s; display: block; }
+    .dismiss-btn:hover { background: #14142A; }
     .empty-state { text-align: center; padding: 60px; color: #444466; }
     .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
     #loading { text-align: center; padding: 60px; color: #444466; letter-spacing: 2px; font-size: 11px; }
-    #refresh-btn { background: #14141F; border: 1px solid #2A2A45; color: #666688; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 11px; letter-spacing: 1px; margin-bottom: 14px; }
+    #refresh-btn { background: #14141F; border: 1px solid #2A2A45; color: #666688; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 11px; margin-bottom: 14px; }
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1A1A2E; border: 1px solid #2E2E4A; color: #E0DDFF; padding: 10px 20px; border-radius: 20px; font-size: 12px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
     .toast.show { opacity: 1; }
     .toast.error { border-color: #550000; color: #FF4444; }
+    .flagged-row td { background: #1A0A0A !important; }
   </style>
 </head>
 <body>
@@ -72,56 +77,47 @@
       <button id="logout-btn" onclick="logout()">LOGOUT</button>
     </div>
   </header>
+
   <div id="stats-bar">
     <div class="stat-card violet"><div class="label">Active Posts</div><div class="value" id="stat-posts">—</div><div class="sub">not expired</div></div>
     <div class="stat-card lavender"><div class="label">Comments (48h)</div><div class="value" id="stat-comments">—</div><div class="sub">last 48 hours</div></div>
     <div class="stat-card mid"><div class="label">Reactions</div><div class="value" id="stat-reactions">—</div><div class="sub">all time</div></div>
-    <div class="stat-card red"><div class="label">Total Views</div><div class="value" id="stat-views">—</div><div class="sub">active posts</div></div>
+    <div class="stat-card red"><div class="label">Reports</div><div class="value" id="stat-reports">—</div><div class="sub">pending review</div></div>
   </div>
+
   <div id="tabs">
     <div class="tab active" onclick="switchTab('posts')">POSTS</div>
     <div class="tab" onclick="switchTab('comments')">COMMENTS</div>
     <div class="tab" onclick="switchTab('reactions')">REACTIONS</div>
-    <div class="tab" onclick="switchTab('reports')" id="reports-tab">REPORTS <span id="report-badge" style="display:none;background:#FF4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:4px;"></span></div>
+    <div class="tab" onclick="switchTab('reports')">
+      REPORTS <span id="report-badge" style="display:none;background:#FF4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:4px;vertical-align:middle;"></span>
+    </div>
   </div>
+
   <div id="content"><div id="loading">Loading...</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ╔══════════════════════════════════════════════════╗
-// ║  STEP 1 — your Supabase URL (already filled in)  ║
-// ╚══════════════════════════════════════════════════╝
-const SUPABASE_URL = 'https://isebpmfsoskdvjscznko.supabase.co';
-
-// ╔══════════════════════════════════════════════════╗
-// ║  STEP 2 — paste your NEW anon key here           ║
-// ║  (Supabase → Settings → API → anon public)       ║
-// ╚══════════════════════════════════════════════════╝
+// ══════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════
+const SUPABASE_URL      = 'https://isebpmfsoskdvjscznko.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZWJwbWZzb3NrZHZqc2N6bmtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTYyODksImV4cCI6MjA4NzU5MjI4OX0.Vwk8rZar5hkVvLNa5YCNI0bXYGse_78XOPpepKQ55aA';
+const SERVICE_ROLE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZWJwbWZzb3NrZHZqc2N6bmtvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAxNjI4OSwiZXhwIjoyMDg3NTkyMjg5fQ.MGXJMDEhhAndXWBsq1LryDj8pTcGokOepJrnv5XCIEs';
+const ADMIN_PASSWORD    = '2006';
+// ══════════════════════════════════════════
 
-// ╔══════════════════════════════════════════════════╗
-// ║  STEP 3 — paste your service_role key here       ║
-// ║  (Supabase → Settings → API → service_role key   ║
-// ║   click the eye icon to reveal it)               ║
-// ║  THIS IS WHAT MAKES DELETE WORK                  ║
-// ╚══════════════════════════════════════════════════╝
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZWJwbWZzb3NrZHZqc2N6bmtvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAxNjI4OSwiZXhwIjoyMDg3NTkyMjg5fQ.MGXJMDEhhAndXWBsq1LryDj8pTcGokOepJrnv5XCIEs';
-
-// ╔══════════════════════════════════════════════════╗
-// ║  STEP 4 — your admin login password              ║
-// ╚══════════════════════════════════════════════════╝
-const ADMIN_PASSWORD = '2006';
-
-// ── Two clients: anon for reading, admin for deleting ──
 const { createClient } = supabase;
 const db      = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const dbAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 let currentTab = 'posts';
 let typeFilter = 'all';
+let allReports = []; // cached reports for post row lookup
 
+// ── AUTH ──────────────────────────────────
 function login() {
   const pw = document.getElementById('admin-password').value;
   if (pw === ADMIN_PASSWORD) {
@@ -141,6 +137,7 @@ function logout() {
   document.getElementById('admin-password').value = '';
 }
 
+// ── TABS ──────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
@@ -149,7 +146,23 @@ function switchTab(tab) {
   loadContent();
 }
 
+// ── DASHBOARD ─────────────────────────────
 async function loadDashboard() {
+  // Load reports first so post rows can show report counts
+  const { data: rData } = await dbAdmin.from('reports').select('*').order('created_at', { ascending: false });
+  allReports = rData || [];
+
+  // Update report badge
+  const badge = document.getElementById('report-badge');
+  const reportCount = allReports.length;
+  document.getElementById('stat-reports').textContent = reportCount;
+  if (reportCount > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = reportCount;
+  } else {
+    badge.style.display = 'none';
+  }
+
   await loadStats();
   await loadContent();
   document.getElementById('last-refresh').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
@@ -163,11 +176,12 @@ async function loadStats() {
     db.from('reactions').select('id'),
   ]);
   const now = Date.now();
-  const active = (postsRes.data||[]).filter(p => (now - new Date(p.created_at)) < (p.burn_fast?24:48)*3600000);
+  const active = (postsRes.data||[]).filter(p =>
+    (now - new Date(p.created_at)) < (p.burn_fast ? 24 : 48) * 3600000
+  );
   document.getElementById('stat-posts').textContent = active.length;
   document.getElementById('stat-comments').textContent = (commentsRes.data||[]).length;
   document.getElementById('stat-reactions').textContent = (reactionsRes.data||[]).length;
-  document.getElementById('stat-views').textContent = active.reduce((s,p)=>s+(p.views||0),0).toLocaleString();
 }
 
 async function loadContent() {
@@ -178,14 +192,19 @@ async function loadContent() {
   else await loadReports();
 }
 
+// ── POSTS ─────────────────────────────────
 async function loadPosts() {
   const cutoff = new Date(Date.now() - 48*3600000).toISOString();
-  let q = db.from('posts').select('*').gte('created_at',cutoff).order('created_at',{ascending:false});
+  let q = db.from('posts').select('*').gte('created_at', cutoff).order('created_at', { ascending: false });
   if (typeFilter !== 'all') q = q.eq('type', typeFilter);
   const { data, error } = await q;
   if (error) { showError(error.message); return; }
+
   const now = Date.now();
-  const posts = (data||[]).filter(p => (now - new Date(p.created_at)) < (p.burn_fast?24:48)*3600000);
+  const posts = (data||[]).filter(p =>
+    (now - new Date(p.created_at)) < (p.burn_fast ? 24 : 48) * 3600000
+  );
+
   document.getElementById('content').innerHTML = `
     <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
     <div class="filters">
@@ -193,120 +212,260 @@ async function loadPosts() {
         `<button class="filter-btn ${typeFilter===t?'active':''}" onclick="setFilter('${t}')">${t.toUpperCase()}</button>`
       ).join('')}
     </div>
-    ${posts.length===0 ? emptyState('No active posts') : `
+    ${posts.length === 0 ? emptyState('No active posts') : `
       <table>
-        <thead><tr><th>TYPE</th><th>CONTENT</th><th>VIBE</th><th>VIEWS</th><th>EXPIRES</th><th>ACTION</th></tr></thead>
+        <thead>
+          <tr>
+            <th>TYPE</th>
+            <th>CONTENT</th>
+            <th>VIBE</th>
+            <th>VIEWS</th>
+            <th>POSTED</th>
+            <th>EXPIRES</th>
+            <th>ACTION</th>
+          </tr>
+        </thead>
         <tbody>${posts.map(postRow).join('')}</tbody>
-      </table>`}`;
+      </table>
+    `}`;
 }
 
 function postRow(p) {
-  const exp = new Date(p.created_at).getTime() + (p.burn_fast?24:48)*3600000;
+  const exp = new Date(p.created_at).getTime() + (p.burn_fast ? 24 : 48) * 3600000;
   const rem = Math.max(0, exp - Date.now());
-  const rh = Math.floor(rem/3600000), rm = Math.floor((rem%3600000)/60000);
-  const preview = (p.content||'').substring(0,200) + ((p.content||'').length>200?'…':'');
-  return `<tr id="row-${p.id}">
-    <td><span class="type-badge badge-${p.type}">${p.type.toUpperCase()}</span>${p.burn_fast?' 🔥':''}</td>
-    <td><div class="post-content">${esc(preview)}</div><div class="post-meta">${p.id.substring(0,8)}…</div></td>
+  const rh = Math.floor(rem / 3600000);
+  const rm = Math.floor((rem % 3600000) / 60000);
+  const preview = (p.content||'').substring(0, 180) + ((p.content||'').length > 180 ? '…' : '');
+
+  // Report count for this post
+  const postReports = allReports.filter(r => r.post_id === p.id);
+  const reportCount = postReports.length;
+  const reportReasons = [...new Set(postReports.map(r => r.reason))].join(', ');
+
+  // Date posted — formatted nicely
+  const postedDate = new Date(p.created_at);
+  const dateStr = postedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const timeStr = postedDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const isFlagged = reportCount > 0;
+
+  return `<tr id="row-${p.id}" class="${isFlagged ? 'flagged-row' : ''}">
+    <td>
+      <span class="type-badge badge-${p.type}">${p.type.toUpperCase()}</span>
+      ${p.burn_fast ? ' 🔥' : ''}
+      ${isFlagged ? `<br><span class="report-badge">⚠ ${reportCount} report${reportCount > 1 ? 's' : ''}</span>` : ''}
+      ${isFlagged ? `<div style="font-size:9px;color:#FF666688;margin-top:3px;max-width:100px;">${esc(reportReasons)}</div>` : ''}
+    </td>
+    <td>
+      <div class="post-content">${esc(preview)}</div>
+      <div class="post-meta">${p.id.substring(0,8)}…</div>
+    </td>
     <td>${p.vibe_level}/10</td>
     <td>${p.views||0}</td>
-    <td style="color:#666688;font-size:11px;">${rh}h ${rm}m</td>
+    <td style="color:#666688;font-size:10px;white-space:nowrap;">${dateStr}<br>${timeStr}</td>
+    <td style="color:#666688;font-size:11px;white-space:nowrap;">${rh}h ${rm}m</td>
     <td><button class="delete-btn" id="del-${p.id}" onclick="deletePost('${p.id}')">DELETE</button></td>
   </tr>`;
 }
 
 async function deletePost(id) {
-  if (!confirm('Delete this post and all its comments, reactions, and votes?')) return;
-  const btn = document.getElementById('del-'+id);
+  if (!confirm('Delete this post and all its comments, reactions, votes and reports?')) return;
+  const btn = document.getElementById('del-' + id);
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   try {
+    await dbAdmin.from('reports').delete().eq('post_id', id);
     await dbAdmin.from('reactions').delete().eq('post_id', id);
     await dbAdmin.from('comments').delete().eq('post_id', id);
     await dbAdmin.from('votes').delete().eq('post_id', id);
     const { error } = await dbAdmin.from('posts').delete().eq('id', id);
     if (error) throw error;
-    const row = document.getElementById('row-'+id);
+    const row = document.getElementById('row-' + id);
     if (row) row.remove();
+    allReports = allReports.filter(r => r.post_id !== id);
     showToast('Post deleted ✓');
     loadStats();
-  } catch(e) {
+  } catch (e) {
     showToast('Delete failed: ' + e.message, true);
     if (btn) { btn.disabled = false; btn.textContent = 'DELETE'; }
   }
 }
 
-function setFilter(f) { typeFilter=f; loadPosts(); }
+function setFilter(f) { typeFilter = f; loadPosts(); }
 
+// ── COMMENTS ──────────────────────────────
 async function loadComments() {
-  const cutoff = new Date(Date.now()-48*3600000).toISOString();
-  const {data} = await db.from('comments').select('*').gte('created_at',cutoff).order('created_at',{ascending:false});
+  const cutoff = new Date(Date.now() - 48*3600000).toISOString();
+  const { data } = await db.from('comments').select('*')
+    .gte('created_at', cutoff).order('created_at', { ascending: false });
+
   document.getElementById('content').innerHTML = `
     <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
-    ${(data||[]).length===0 ? emptyState('No comments in last 48h') : `
+    ${(data||[]).length === 0 ? emptyState('No comments in last 48h') : `
       <table>
         <thead><tr><th>TIME</th><th>COMMENT</th><th>ACTION</th></tr></thead>
-        <tbody>${(data||[]).map(c=>`
+        <tbody>${(data||[]).map(c => `
           <tr id="crow-${c.id}">
             <td style="color:#666688;font-size:10px;white-space:nowrap;">${timeAgo(c.created_at)}</td>
-            <td><div class="post-content">${esc(c.text||'')}</div><div class="post-meta">post: ${(c.post_id||'').substring(0,8)}…</div></td>
+            <td>
+              <div class="post-content">${esc(c.text||'')}</div>
+              <div class="post-meta">post: ${(c.post_id||'').substring(0,8)}…</div>
+            </td>
             <td><button class="delete-btn" id="cdel-${c.id}" onclick="deleteComment('${c.id}')">DELETE</button></td>
           </tr>`).join('')}
         </tbody>
-      </table>`}`;
+      </table>
+    `}`;
 }
 
 async function deleteComment(id) {
   if (!confirm('Delete this comment?')) return;
-  const btn = document.getElementById('cdel-'+id);
+  const btn = document.getElementById('cdel-' + id);
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   try {
     const { error } = await dbAdmin.from('comments').delete().eq('id', id);
     if (error) throw error;
-    const row = document.getElementById('crow-'+id);
+    const row = document.getElementById('crow-' + id);
     if (row) row.remove();
     showToast('Comment deleted ✓');
-    loadStats();
-  } catch(e) {
+  } catch (e) {
     showToast('Delete failed: ' + e.message, true);
     if (btn) { btn.disabled = false; btn.textContent = 'DELETE'; }
   }
 }
 
+// ── REACTIONS ─────────────────────────────
 async function loadReactions() {
-  const {data} = await db.from('reactions').select('emoji');
-  const counts={};
-  (data||[]).forEach(r=>{ counts[r.emoji]=(counts[r.emoji]||0)+1; });
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const total = Object.values(counts).reduce((s,v)=>s+v,0);
+  const { data } = await db.from('reactions').select('emoji');
+  const counts = {};
+  (data||[]).forEach(r => { counts[r.emoji] = (counts[r.emoji]||0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const total = Object.values(counts).reduce((s, v) => s + v, 0);
+
   document.getElementById('content').innerHTML = `
     <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
-    ${sorted.length===0 ? emptyState('No reactions yet') : `
+    ${sorted.length === 0 ? emptyState('No reactions yet') : `
       <table style="max-width:360px;">
         <thead><tr><th>EMOJI</th><th>COUNT</th><th>%</th></tr></thead>
-        <tbody>${sorted.map(([e,c])=>`
+        <tbody>${sorted.map(([e, c]) => `
           <tr>
             <td style="font-size:22px;">${e}</td>
             <td style="font-size:18px;font-weight:bold;color:#fff;">${c}</td>
             <td style="color:#444466;">${((c/total)*100).toFixed(1)}%</td>
           </tr>`).join('')}
         </tbody>
-      </table>`}`;
+      </table>
+    `}`;
 }
 
-function emptyState(msg) { return `<div class="empty-state"><div class="icon">👻</div>${msg}</div>`; }
-function showError(msg) { document.getElementById('content').innerHTML=`<div class="empty-state"><div class="icon">⚠️</div>${msg}</div>`; }
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function timeAgo(ts) {
-  const d=(Date.now()-new Date(ts))/1000;
-  if(d<60) return Math.round(d)+'s ago';
-  if(d<3600) return Math.round(d/60)+'m ago';
-  return Math.round(d/3600)+'h ago';
+// ── REPORTS ───────────────────────────────
+async function loadReports() {
+  // Use dbAdmin so service_role key bypasses RLS
+  const { data, error } = await dbAdmin.from('reports').select('*').order('created_at', { ascending: false });
+
+  if (error) {
+    showError('Could not load reports: ' + error.message + ' — Make sure your SERVICE_ROLE_KEY is set correctly.');
+    return;
+  }
+
+  const reports = data || [];
+  allReports = reports;
+
+  // Group by post_id to show unique posts with all their reasons
+  const byPost = {};
+  reports.forEach(r => {
+    if (!byPost[r.post_id]) byPost[r.post_id] = [];
+    byPost[r.post_id].push(r);
+  });
+
+  document.getElementById('content').innerHTML = `
+    <button id="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    ${reports.length === 0 ? emptyState('No reports — all clear 👻') : `
+      <p style="color:#666688;font-size:11px;margin-bottom:14px;">${reports.length} report${reports.length>1?'s':''} across ${Object.keys(byPost).length} post${Object.keys(byPost).length>1?'s':''}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>REPORTED</th>
+            <th>REASON</th>
+            <th>POST ID</th>
+            <th>COUNT</th>
+            <th>ACTION</th>
+          </tr>
+        </thead>
+        <tbody>${reports.map(r => `
+          <tr id="rrow-${r.id}" style="border-left: 2px solid #FF444444;">
+            <td style="color:#666688;font-size:10px;white-space:nowrap;">${timeAgo(r.created_at)}</td>
+            <td style="color:#FF8888;font-weight:bold;">${esc(r.reason||'')}</td>
+            <td style="color:#444466;font-size:10px;font-family:monospace;">${(r.post_id||'').substring(0,12)}…</td>
+            <td>
+              <span class="report-badge">⚠ ${byPost[r.post_id]?.length || 1}</span>
+            </td>
+            <td>
+              <button class="delete-btn" onclick="deleteReportedPost('${r.post_id}', '${r.id}')">DELETE POST</button>
+              <button class="dismiss-btn" onclick="dismissReport('${r.id}')">DISMISS</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    `}`;
 }
-function showToast(msg, isError=false) {
+
+async function deleteReportedPost(postId, reportId) {
+  if (!confirm('Delete this reported post and ALL its content?')) return;
+  try {
+    await dbAdmin.from('reports').delete().eq('post_id', postId);
+    await dbAdmin.from('reactions').delete().eq('post_id', postId);
+    await dbAdmin.from('comments').delete().eq('post_id', postId);
+    await dbAdmin.from('votes').delete().eq('post_id', postId);
+    const { error } = await dbAdmin.from('posts').delete().eq('id', postId);
+    if (error) throw error;
+    // Remove all rows for this post
+    document.querySelectorAll(`[id^="rrow-"]`).forEach(row => {
+      if (row.querySelector(`[onclick*="${postId}"]`)) row.remove();
+    });
+    allReports = allReports.filter(r => r.post_id !== postId);
+    showToast('Post deleted ✓');
+    loadStats();
+  } catch (e) {
+    showToast('Failed: ' + e.message, true);
+  }
+}
+
+async function dismissReport(reportId) {
+  try {
+    const { error } = await dbAdmin.from('reports').delete().eq('id', reportId);
+    if (error) throw error;
+    const row = document.getElementById('rrow-' + reportId);
+    if (row) row.remove();
+    allReports = allReports.filter(r => r.id !== reportId);
+    showToast('Report dismissed ✓');
+  } catch (e) {
+    showToast('Failed: ' + e.message, true);
+  }
+}
+
+// ── HELPERS ───────────────────────────────
+function emptyState(msg) {
+  return `<div class="empty-state"><div class="icon">👻</div>${msg}</div>`;
+}
+function showError(msg) {
+  document.getElementById('content').innerHTML =
+    `<div class="empty-state"><div class="icon">⚠️</div><div style="color:#FF4444;">${msg}</div></div>`;
+}
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function timeAgo(ts) {
+  const d = (Date.now() - new Date(ts)) / 1000;
+  if (d < 60) return Math.round(d) + 's ago';
+  if (d < 3600) return Math.round(d/60) + 'm ago';
+  if (d < 86400) return Math.round(d/3600) + 'h ago';
+  return Math.round(d/86400) + 'd ago';
+}
+function showToast(msg, isError = false) {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'toast show' + (isError?' error':'');
-  setTimeout(()=>{ t.className='toast'; }, 3000);
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'toast'; }, 3000);
 }
 </script>
 </body>
