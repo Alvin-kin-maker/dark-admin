@@ -82,6 +82,7 @@
     <div class="tab active" onclick="switchTab('posts')">POSTS</div>
     <div class="tab" onclick="switchTab('comments')">COMMENTS</div>
     <div class="tab" onclick="switchTab('reactions')">REACTIONS</div>
+    <div class="tab" onclick="switchTab('reports')" id="reports-tab">REPORTS <span id="report-badge" style="display:none;background:#FF4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:4px;"></span></div>
   </div>
   <div id="content"><div id="loading">Loading...</div></div>
 </div>
@@ -143,7 +144,7 @@ function logout() {
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['posts','comments','reactions'][i] === tab);
+    el.classList.toggle('active', ['posts','comments','reactions','reports'][i] === tab);
   });
   loadContent();
 }
@@ -173,7 +174,8 @@ async function loadContent() {
   document.getElementById('content').innerHTML = '<div id="loading">Loading...</div>';
   if (currentTab === 'posts') await loadPosts();
   else if (currentTab === 'comments') await loadComments();
-  else await loadReactions();
+  else if (currentTab === 'reactions') await loadReactions();
+  else await loadReports();
 }
 
 async function loadPosts() {
